@@ -106,13 +106,70 @@ exports.author_create_post = [
   }
 ]
 
-exports.author_delete_get = function(req, res) {
-  res.send('NOT IMPLEMENTED: Author delete GET');
+exports.author_delete_get = function(req, res, next) {
+  // res.send('NOT IMPLEMENTED: Author delete GET');
+
+  async.parallel({
+    author: function(callback) {
+      Author.findById(req.params.id).exec(callback)
+    },
+    author_books: function(callback) {
+      Book.find({ 'author': req.params.id }).exec(callback);
+    }
+  }, function(err, results) {
+    if(err) {
+      return nextTick(err);
+    }
+    if(results.author==null) { // No results
+      res.redirect('/catalog/authors');
+    }
+    // Successful, so render.
+    res.render('author_delete', {
+      title: 'Delete Author',
+      author: results.author,
+      author_books: results.author_books
+    });
+  });
 }
 
 // Handle author delete on POST
-exports.author_delete_post = function(req, res) {
-  res.send('NOT IMPLEMENTED: Author delete POST');
+// exports.author_delete_post = function(req, res) {
+//   res.send('NOT IMPLEMENTED: Author delete POST');
+// }
+exports.author_delete_post = function(req, res, next) {
+
+  async.parallel({
+    author: function(callback) {
+      Author.findById(req.body.authorid).exec(callback);
+    },
+    author_books: function(callback) {
+      Book.find({ 'author': req.body.authorid }).exec(callback);
+    }
+  }, function(err, results) {
+    if(err) {
+      return next(err);
+    }
+    // Success
+    if(results.author_books.length > 0) {
+      // Author has books. Render in same way as for Get route.
+      res.render('author_delete', {
+        title: 'Delete Author',
+        author: results.author,
+        author_books: results.author_books
+      });
+      return;
+    }
+    else {
+      // Author has no books. Delete object and redirect to the list of authors.
+      Author.findByIdAndRemove(req.body.authorid, function deleteAuthor(err) {
+        if(err) {
+          return next(err);
+        }
+        // Success - go to author list
+        res.redirect('/catalog/authors');
+      });
+    }
+  });
 }
 
 // Display author update on GET
